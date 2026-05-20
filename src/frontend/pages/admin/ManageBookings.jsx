@@ -5,11 +5,22 @@ import { adminApi } from '../../api/adminApi';
 import { getErrorMessage } from '../../utils/errors';
 import { useToast } from '../../context/ToastContext';
 
+function valueOrFallback(value) {
+  return value === null || value === undefined || value === '' || value === 0 ? 'Not available' : value;
+}
+
+function bookingEmail(booking) {
+  return booking?.email || booking?.userEmail || booking?.customerEmail;
+}
+
 export default function ManageBookings() {
   const { showToast } = useToast();
   const [bookingId, setBookingId] = useState('');
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(false);
+  const guestName = booking
+    ? `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || booking.username || 'Guest'
+    : '';
 
   const submit = async (event) => {
     event.preventDefault();
@@ -42,8 +53,10 @@ export default function ManageBookings() {
           <div className="detail-list">
             <span>Hotel: {booking.hotelName || booking.hotelId}</span>
             <span>Room: {booking.roomType || booking.roomId}</span>
-            <span>Guest: {booking.firstName} {booking.lastName}</span>
-            <span>Email: {booking.email}</span>
+            <span>Name: {guestName}</span>
+            <span>Email: {valueOrFallback(bookingEmail(booking))}</span>
+            <span>Phone: {valueOrFallback(booking.phoneNumber)}</span>
+            <span>Guests: {valueOrFallback(booking.totalGuests)}</span>
             <span>Dates: {booking.checkInDate} to {booking.checkOutDate}</span>
             <span>Status: {booking.status}</span>
           </div>

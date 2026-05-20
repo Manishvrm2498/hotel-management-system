@@ -6,6 +6,7 @@ import lombok.Data;
 import java.util.List;
 
 @Entity
+@Table(name = "hotel")
 @Data
 @JsonPropertyOrder({ "id", "name", "state","district","address","contactNumber","rating","description","imageUrl" })
 public class Hotel {

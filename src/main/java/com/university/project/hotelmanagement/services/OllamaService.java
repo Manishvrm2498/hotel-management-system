@@ -66,6 +66,10 @@ public class OllamaService {
         }
 
         AiContext context = buildContext(prompt);
+        if (isBookingDetailsIntent(prompt)) {
+            return bookingAnswer(context);
+        }
+
         String contextualPrompt = """
                 User question:
                 %s
@@ -134,7 +138,13 @@ public class OllamaService {
 
         Optional<UserEntity> currentUser = getAuthenticatedUser();
         List<Booking> bookings = currentUser
-                .map(user -> bookingRepository.findAllBookingsByUserId(user.getId()).stream()
+                .map(user -> bookingRepository.findAiBookingsForUser(
+                                user.getId(),
+                                safe(user.getEmail()),
+                                safe(user.getFirstName()),
+                                safe(user.getLastName())
+                        )
+                        .stream()
                         .sorted(Comparator.comparing(
                                 Booking::getBookedAt,
                                 Comparator.nullsLast(Comparator.reverseOrder())
@@ -196,31 +206,14 @@ public class OllamaService {
     private String fallbackAnswer(String prompt, AiContext context, String serviceMessage) {
         String normalizedPrompt = normalize(prompt);
         if (!isHotelRelated(normalizedPrompt)) {
-            return "Main sirf hotel related help kar sakta hoon, jaise hotel suggestion, booking details, payment, receipt, rooms aur reviews.";
+            return "I can only help with hotel-related topics such as hotel suggestions, booking details, payments, receipts, rooms, and reviews.";
         }
 
         StringBuilder answer = new StringBuilder();
-        if (normalizedPrompt.contains("last") || normalizedPrompt.contains("pich") || normalizedPrompt.contains("book")) {
-            if (context.bookings().isEmpty()) {
-                answer.append("Is user ke liye abhi koi booking database me nahi mili.");
-            } else {
-                Booking last = context.bookings().get(0);
-                answer.append("Aapki last booking: ")
-                        .append(last.getHotel().getName())
-                        .append(", room ")
-                        .append(last.getRoom().getType())
-                        .append(", ")
-                        .append(last.getCheckInDate())
-                        .append(" se ")
-                        .append(last.getCheckOutDate())
-                        .append(", status ")
-                        .append(last.getStatus())
-                        .append(", amount Rs. ")
-                        .append(last.getTotalPrice())
-                        .append(".");
-            }
+        if (isBookingDetailsIntent(prompt)) {
+            answer.append(bookingAnswer(context));
         } else if (!context.hotels().isEmpty()) {
-            answer.append("Database ke according matching hotel suggestions:\n");
+            answer.append("Matching hotel suggestions from the database:\n");
             context.hotels().stream().limit(5).forEach(hotel ->
                     answer.append("- ")
                             .append(hotel.getName())
@@ -233,11 +226,62 @@ public class OllamaService {
                             .append("\n")
             );
         } else {
-            answer.append("Is filter ke according database me koi matching hotel nahi mila.");
+            answer.append("No matching hotels were found in the database for this filter.");
         }
 
         answer.append("\n\nNote: ").append(serviceMessage);
         return answer.toString();
+    }
+
+    private String bookingAnswer(AiContext context) {
+        if (context.user().isEmpty()) {
+            return "Please log in first so I can show your booking details.";
+        }
+        if (context.bookings().isEmpty()) {
+            return "No bookings were found in the database for your account.";
+        }
+
+        Booking latest = context.bookings().get(0);
+        UserEntity user = context.user().get();
+        return """
+                Hello %s %s,
+
+                Your latest booking details are:
+                - Booking ID: %s
+                - Hotel: %s
+                - Location: %s, %s
+                - Room type: %s
+                - Check-in: %s
+                - Check-out: %s
+                - Status: %s
+                - Amount: Rs. %.2f
+                """.formatted(
+                safe(user.getFirstName()),
+                safe(user.getLastName()),
+                latest.getId(),
+                latest.getHotel().getName(),
+                latest.getHotel().getDistrict(),
+                latest.getHotel().getState(),
+                latest.getRoom().getType(),
+                latest.getCheckInDate(),
+                latest.getCheckOutDate(),
+                latest.getStatus(),
+                latest.getTotalPrice()
+        ).trim();
+    }
+
+    private boolean isBookingDetailsIntent(String prompt) {
+        String value = normalize(prompt);
+        return value.contains("my booking")
+                || value.contains("booking detail")
+                || value.contains("booking details")
+                || value.contains("booking status")
+                || value.contains("last booking")
+                || value.contains("latest booking")
+                || value.contains("what did i book")
+                || value.contains("show booking")
+                || value.contains("meri booking")
+                || value.contains("last book");
     }
 
     private boolean isHotelRelated(String prompt) {
@@ -252,6 +296,10 @@ public class OllamaService {
 
     private boolean containsIgnoreCase(String source, String expected) {
         return normalize(source).contains(normalize(expected));
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 
     private String extractText(ChatResponse response) {

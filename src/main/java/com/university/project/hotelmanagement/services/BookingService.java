@@ -9,6 +9,7 @@ import com.university.project.hotelmanagement.exception.BadRequestException;
 import com.university.project.hotelmanagement.exception.DuplicateResourceException;
 import com.university.project.hotelmanagement.exception.ResourceNotFoundException;
 import com.university.project.hotelmanagement.repository.BookingRepository;
+import com.university.project.hotelmanagement.repository.BookingRepository.AdminBookingRow;
 import com.university.project.hotelmanagement.repository.RoomLockRepository;
 import com.university.project.hotelmanagement.repository.RoomRepository;
 import com.university.project.hotelmanagement.repository.UserRepository;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -125,17 +127,17 @@ public class BookingService {
         return mapToResponse(savedBooking);
     }
     public BookingResponseDTO getBookingByIdForAdmin(Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
+        AdminBookingRow row = bookingRepository.findAdminBookingRowById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
 
-        String currentAdminEmail = getCurrentUser().getEmail();
-        if (booking.getHotel() == null
-                || booking.getHotel().getAdmin() == null
-                || !currentAdminEmail.equals(booking.getHotel().getAdmin().getEmail())) {
+        UserEntity currentUser = getCurrentUser();
+        String adminEmail = row.getAdminEmail();
+        boolean isSuperAdmin = "ROLE_SUPERADMIN".equalsIgnoreCase(currentUser.getRole());
+        if (!isSuperAdmin && (adminEmail == null || !adminEmail.equals(currentUser.getEmail()))) {
             throw new ResourceNotFoundException("Booking not found with ID: " + bookingId);
         }
 
-        return mapToResponse(booking);
+        return mapAdminBookingRow(row);
     }
 
     public List<BookingResponseDTO> getBookingsByUser() {
@@ -210,13 +212,91 @@ public class BookingService {
         dto.setStatus(b.getStatus().name());
 
         dto.setBookedAt(b.getBookedAt());
+        dto.setFirstName(b.getFirstName());
+        dto.setLastName(b.getLastName());
+        dto.setEmail(b.getEmail());
+        dto.setUserId(b.getUser() == null ? null : b.getUser().getId());
+        dto.setUserEmail(b.getUser() == null ? null : b.getUser().getEmail());
+        dto.setPhoneNumber(b.getPhoneNumber());
+        dto.setTotalGuests(b.getTotalGuests());
 
-        if (b.getUser() != null) {
-            dto.setUsername(b.getUser().getFirstName() + " " + b.getUser().getLastName());
-        } else {
-            dto.setUsername(b.getFirstName() + " " + b.getLastName());
+        enrichCustomerDetails(b, dto);
+
+        return dto;
+    }
+
+    private void enrichCustomerDetails(Booking booking, BookingResponseDTO dto) {
+        Optional<UserEntity> matchedUser = Optional.ofNullable(booking.getUser());
+
+        if (matchedUser.isEmpty() && hasText(dto.getFirstName()) && hasText(dto.getLastName())) {
+            matchedUser = userRepository.findFirstByFirstNameIgnoreCaseAndLastNameIgnoreCase(
+                    dto.getFirstName().trim(),
+                    dto.getLastName().trim()
+            );
         }
 
+        if (matchedUser.isEmpty() && hasText(dto.getFirstName() + dto.getLastName())) {
+            String bookingName = normalizeName(dto.getFirstName(), dto.getLastName());
+            matchedUser = userRepository.findAll()
+                    .stream()
+                    .filter(user -> normalizeName(user.getFirstName(), user.getLastName()).equals(bookingName))
+                    .findFirst();
+        }
+
+        matchedUser.ifPresent(user -> {
+            dto.setUserId(user.getId());
+            dto.setUserEmail(user.getEmail());
+            if (!hasText(dto.getFirstName())) {
+                dto.setFirstName(user.getFirstName());
+            }
+            if (!hasText(dto.getLastName())) {
+                dto.setLastName(user.getLastName());
+            }
+            if (!hasText(dto.getEmail())) {
+                dto.setEmail(user.getEmail());
+            }
+        });
+
+        String name = (safe(dto.getFirstName()) + " " + safe(dto.getLastName())).trim();
+        dto.setUsername(hasText(name) ? name : "Guest");
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String normalizeName(String firstName, String lastName) {
+        return (safe(firstName) + " " + safe(lastName))
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]", "");
+    }
+
+    private BookingResponseDTO mapAdminBookingRow(AdminBookingRow row) {
+        BookingResponseDTO dto = new BookingResponseDTO();
+        dto.setId(row.getId());
+        dto.setFirstName(row.getFirstName());
+        dto.setLastName(row.getLastName());
+        dto.setEmail(row.getEmail());
+        dto.setPhoneNumber(row.getPhoneNumber());
+        dto.setTotalGuests(row.getTotalGuests() == null ? 0 : row.getTotalGuests());
+        dto.setCheckInDate(row.getCheckInDate());
+        dto.setCheckOutDate(row.getCheckOutDate());
+        dto.setTotalPrice(row.getTotalPrice() == null ? 0 : row.getTotalPrice());
+        dto.setStatus(row.getStatus());
+        dto.setBookedAt(row.getBookedAt());
+        dto.setUserId(row.getUserId());
+        dto.setUserEmail(row.getUserEmail());
+        dto.setHotelName(row.getHotelName());
+        dto.setRoomType(row.getRoomType());
+        if (!hasText(dto.getEmail())) {
+            dto.setEmail(dto.getUserEmail());
+        }
+        String name = (safe(dto.getFirstName()) + " " + safe(dto.getLastName())).trim();
+        dto.setUsername(hasText(name) ? name : "Guest");
         return dto;
     }
 

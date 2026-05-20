@@ -2,22 +2,20 @@ package com.university.project.hotelmanagement.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "email_log")
 @Data
-public class RoomLock {
+public class EmailLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "room_id", nullable = false)
-    private Long roomId;
-
-    private String email;
-
-    private LocalDateTime lockExpiry;
-
+    private String toEmail;
+    private String subject;
+    private String status;
+    private String errorMessage;
+    private LocalDateTime sentAt;
 }

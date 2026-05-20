@@ -24,11 +24,76 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT b FROM Booking b JOIN FETCH b.room r JOIN FETCH r.hotel h WHERE b.user.id = :userId")
     List<Booking> findAllBookingsByUserId(@Param("userId") Long userId);
 
+    @Query("""
+            SELECT DISTINCT b FROM Booking b
+            JOIN FETCH b.room r
+            JOIN FETCH r.hotel h
+            LEFT JOIN FETCH b.user u
+            WHERE b.user.id = :userId
+               OR LOWER(b.email) = LOWER(:email)
+               OR (
+                    LOWER(b.firstName) = LOWER(:firstName)
+                    AND LOWER(b.lastName) = LOWER(:lastName)
+               )
+            """)
+    List<Booking> findAiBookingsForUser(
+            @Param("userId") Long userId,
+            @Param("email") String email,
+            @Param("firstName") String firstName,
+            @Param("lastName") String lastName
+    );
+
     @Query("SELECT b FROM Booking b JOIN FETCH b.room r JOIN FETCH r.hotel h")
     List<Booking> findAllDetailedBookings();
 
     @Query("SELECT b FROM Booking b JOIN FETCH b.user JOIN FETCH b.room WHERE b.id = :id")
     Optional<Booking> findByBookingIdWithDetails(@Param("id") Long id);
+
+    @Query(value = """
+            SELECT
+                b.id AS id,
+                b.firstName AS firstName,
+                b.lastName AS lastName,
+                COALESCE(b.email, u.email) AS email,
+                b.phoneNumber AS phoneNumber,
+                b.totalGuests AS totalGuests,
+                b.checkInDate AS checkInDate,
+                b.checkOutDate AS checkOutDate,
+                b.totalPrice AS totalPrice,
+                b.status AS status,
+                b.bookedAt AS bookedAt,
+                b.user_id AS userId,
+                u.email AS userEmail,
+                h.name AS hotelName,
+                r.type AS roomType,
+                admin.email AS adminEmail
+            FROM booking b
+            JOIN hotel h ON b.hotel_id = h.id
+            JOIN room r ON b.room_id = r.id
+            LEFT JOIN users u ON b.user_id = u.id
+            LEFT JOIN users admin ON h.admin_id = admin.id
+            WHERE b.id = :id
+            """, nativeQuery = true)
+    Optional<AdminBookingRow> findAdminBookingRowById(@Param("id") Long id);
+
+    interface AdminBookingRow {
+        Long getId();
+        String getFirstName();
+        String getLastName();
+        String getEmail();
+        String getPhoneNumber();
+        Integer getTotalGuests();
+        LocalDate getCheckInDate();
+        LocalDate getCheckOutDate();
+        Double getTotalPrice();
+        String getStatus();
+        LocalDateTime getBookedAt();
+        Long getUserId();
+        String getUserEmail();
+        String getHotelName();
+        String getRoomType();
+        String getAdminEmail();
+    }
 
     List<Booking> findAllByUserId(Long userId);
 
