@@ -27,9 +27,27 @@ public class EmailService {
 
     @Async
     public void sendOtpEmail(String toEmail, String userName, String otp) {
-        sendOtpWithRetry(toEmail, userName, otp, 3);
-    }
+        try {
+            System.out.println("OTP email method called for: " + toEmail);
+            System.out.println("From email: " + FROM_EMAIL);
 
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(toEmail);
+            helper.setFrom(FROM_EMAIL);
+            helper.setSubject("OTP Verification - " + APP_NAME);
+            helper.setText(buildRegistrationOtpTemplate(userName, otp), true);
+
+            mailSender.send(message);
+
+            System.out.println("OTP email sent successfully to: " + toEmail);
+
+        } catch (Exception e) {
+            System.out.println("OTP EMAIL FAILED: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
     public void sendOtpWithRetry(String toEmail, String userName, String otp, int maxAttempts) {
 
         String subject = "OTP Verification - " + APP_NAME;
