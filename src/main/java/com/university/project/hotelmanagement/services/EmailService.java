@@ -4,6 +4,7 @@ import com.university.project.hotelmanagement.entity.EmailLog;
 import com.university.project.hotelmanagement.repository.EmailLogRepository;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -18,7 +19,9 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final EmailLogRepository logRepository;
 
-    private static final String FROM_EMAIL = "no-reply@hotelapp.com";
+    @Value("${spring.mail.username}")
+    private String FROM_EMAIL;
+//    private static final String FROM_EMAIL = "no-reply@hotelapp.com";
     private static final String APP_NAME = "Hotel Management System";
 
 
