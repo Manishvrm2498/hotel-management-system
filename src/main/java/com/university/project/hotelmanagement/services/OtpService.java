@@ -5,6 +5,7 @@ import com.university.project.hotelmanagement.exception.OtpException;
 import com.university.project.hotelmanagement.repository.OtpRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -21,6 +22,7 @@ public class OtpService {
     private final EmailService emailService;
     private final RateLimitService rateLimitService;
 
+    @Transactional
     public String sendOtp(String email,String username,String type) {
         String normalizedPurpose = type.trim().toUpperCase();
 
