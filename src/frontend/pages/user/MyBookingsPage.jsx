@@ -110,7 +110,7 @@ export default function MyBookingsPage() {
                     {booking.status === 'PENDING' && (
                       <Button variant="ghost" onClick={() => navigate(`/payment/${bookingId(booking)}`, { state: { booking } })}>Pay</Button>
                     )}
-                    {booking.status === 'CONFIRMED' && (
+                    {(booking.status === 'CONFIRMED' || booking.status === 'COMPLETED') && (
                       <Button variant="ghost" onClick={() => openReview(booking)}>Review</Button>
                     )}
                     <Button variant="ghost" onClick={() => downloadBookingReceipt(booking, user)}>Receipt</Button>

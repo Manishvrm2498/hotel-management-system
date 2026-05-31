@@ -60,13 +60,21 @@ public class HotelController {
     @GetMapping("/{id}/picture")
     public ResponseEntity<byte[]> getHotelPicture(@PathVariable Long id) {
         Hotel hotel = hotelService.getHotelEntity(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Hotel not found"));
-        if (hotel.getPicture() == null) {
+                .orElse(null);
+
+        if (hotel == null || hotel.getPicture() == null || hotel.getPicture().length == 0) {
             return ResponseEntity.notFound().build();
         }
+
+        String contentType = hotel.getPictureContentType();
+
+        if (contentType == null || contentType.isBlank()) {
+            contentType = MediaType.IMAGE_JPEG_VALUE;
+        }
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
-                .contentType(MediaType.parseMediaType(hotel.getPictureContentType()))
+                .contentType(MediaType.parseMediaType(contentType))
                 .body(hotel.getPicture());
     }
 
@@ -74,8 +82,9 @@ public class HotelController {
     public ResponseEntity<List<HotelResponseDTO>> searchHotels(
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String district,
-            @RequestParam(required = false) Double rating) {
+            @RequestParam(required = false) Double rating,
+            @RequestParam(defaultValue = "true") boolean availableOnly) {
 
-        return ResponseEntity.ok(hotelService.searchHotels(state, district, rating));
+        return ResponseEntity.ok(hotelService.searchHotels(state, district, rating, availableOnly));
     }
 }

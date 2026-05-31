@@ -115,6 +115,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByStatusAndExpiryTimeBefore(BookingStatus bookingStatus, LocalDateTime now);
 
+    List<Booking> findByStatusAndCheckOutDateBefore(BookingStatus bookingStatus, LocalDate today);
+
     @Query("SELECT COUNT(b) > 0 FROM Booking b WHERE b.room.id = :roomId " +
             "AND b.status != 'CANCELLED' " +
             "AND :checkIn < b.checkOutDate AND :checkOut > b.checkInDate")

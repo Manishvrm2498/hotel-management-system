@@ -102,12 +102,14 @@ public class HotelService {
 
     public List<HotelResponseDTO> searchByLocation(String state, String district,String name) {
         return hotelRepository.findByStateDistrictAndName(state, district,name).stream()
+                .filter(this::hasAvailableRoom)
                 .map(this::mapToHotelDTO).collect(Collectors.toList());
     }
 
     public List<HotelResponseDTO> searchByName(String name) {
         return hotelRepository.findByNameContainingIgnoreCase(name)
                 .stream()
+                .filter(this::hasAvailableRoom)
                 .map(this::mapToHotelDTO)
                 .collect(Collectors.toList());
     }
@@ -121,11 +123,14 @@ public class HotelService {
     }
 
 
-    public List<HotelResponseDTO> searchHotels(String state, String district, Double rating) {
+    public List<HotelResponseDTO> searchHotels(String state, String district, Double rating, boolean availableOnly) {
 
         List<Hotel> hotels = hotelRepository.findAll();
 
         return hotels.stream()
+
+                // HIDE HOTELS WITHOUT BOOKABLE INVENTORY FROM GUEST SEARCHES
+                .filter(hotel -> !availableOnly || hasAvailableRoom(hotel))
 
                 // STATE FILTER
                 .filter(hotel -> state == null ||
@@ -150,6 +155,11 @@ public class HotelService {
                         .build())
 
                 .toList();
+    }
+
+    private boolean hasAvailableRoom(Hotel hotel) {
+        return roomRepository.findByHotelId(hotel.getId()).stream()
+                .anyMatch(room -> room.isAvailable() && room.getTotalRooms() > 0);
     }
 
     public List<RoomResponseDTO> getRoomsByHotel(Long hotelId) {

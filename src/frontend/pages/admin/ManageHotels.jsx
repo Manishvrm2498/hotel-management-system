@@ -16,7 +16,7 @@ export default function ManageHotels() {
     setLoading(true);
     try {
       const params = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value));
-      const { data } = await hotelApi.getHotels(params);
+      const { data } = await hotelApi.getHotels({ ...params, availableOnly: false });
       setHotels(asArray(data));
     } catch (error) {
       showToast(getErrorMessage(error), 'error');

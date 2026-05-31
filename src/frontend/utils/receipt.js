@@ -48,7 +48,7 @@ export function downloadBookingReceipt(booking, user) {
     <section class="header">
       <div>
         <h1>Booking Receipt</h1>
-        <div class="muted">Aurora Stay</div>
+        <div class="muted">AR Grand Stay</div>
       </div>
       <div>
         <strong>Receipt #${escapeHtml(bookingId)}</strong>

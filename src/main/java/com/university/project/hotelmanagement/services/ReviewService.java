@@ -35,7 +35,8 @@ public class ReviewService {
             throw new BadRequestException("You can only review your own bookings!");
         }
 
-        if (!BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+        if (!BookingStatus.CONFIRMED.equals(booking.getStatus())
+                && !BookingStatus.COMPLETED.equals(booking.getStatus())) {
             throw new BadRequestException("You can only review after a successful booking!");
         }
 

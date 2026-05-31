@@ -69,6 +69,16 @@ public class BookingService {
         for (Booking booking : expiredBookings) {
             booking.setStatus(BookingStatus.EXPIRED);
         }
+
+        List<Booking> completedBookings =
+                bookingRepository.findByStatusAndCheckOutDateBefore(
+                        BookingStatus.CONFIRMED,
+                        LocalDate.now()
+                );
+
+        for (Booking booking : completedBookings) {
+            booking.setStatus(BookingStatus.COMPLETED);
+        }
     }
 
     @Transactional
