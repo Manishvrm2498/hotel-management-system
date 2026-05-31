@@ -4,6 +4,8 @@ import com.university.project.hotelmanagement.entity.EmailLog;
 import com.university.project.hotelmanagement.repository.EmailLogRepository;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -16,6 +18,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class EmailService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(EmailService.class);
     private final JavaMailSender mailSender;
     private final EmailLogRepository logRepository;
 
@@ -25,7 +28,6 @@ public class EmailService {
     private static final String APP_NAME = "Hotel Management System";
 
 
-    @Async
     public void sendOtpEmail(String toEmail, String userName, String otp) {
         sendOtpWithRetry(toEmail, userName, otp, 3);
     }
@@ -54,7 +56,8 @@ public class EmailService {
             } catch (Exception e) {
                 if (i == maxAttempts) {
                     log(toEmail, subject, "FAILED", e.getMessage());
-                    throw new RuntimeException("OTP email failed");
+                    LOGGER.error("Failed to send registration OTP email to {}", toEmail, e);
+                    throw new IllegalStateException("Unable to send OTP email. Please try again later.", e);
                 }
             }
         }
@@ -99,7 +102,6 @@ public class EmailService {
 
 
 
-    @Async
     public void sendForgotPasswordEmail(String toEmail, String userName, String otp) {
         sendForgotPasswordWithRetry(toEmail, userName, otp, 3);
     }
@@ -127,7 +129,8 @@ public class EmailService {
             } catch (Exception e) {
                 if (i == maxAttempts) {
                     log(toEmail, subject, "FAILED", e.getMessage());
-                    throw new RuntimeException("Forgot password email failed");
+                    LOGGER.error("Failed to send password reset OTP email to {}", toEmail, e);
+                    throw new IllegalStateException("Unable to send password reset email. Please try again later.", e);
                 }
             }
         }
