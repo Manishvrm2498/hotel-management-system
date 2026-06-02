@@ -21,6 +21,7 @@ import java.util.Map;
 public class EmailService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailService.class);
+    private static final int MAX_LOG_ERROR_LENGTH = 4000;
     private final EmailLogRepository logRepository;
 
     @Value("${sendgrid.api-key:}")
@@ -310,9 +311,20 @@ public class EmailService {
         log.setToEmail(to);
         log.setSubject(subject);
         log.setStatus(status);
-        log.setErrorMessage(error);
+        log.setErrorMessage(truncate(error, MAX_LOG_ERROR_LENGTH));
         log.setSentAt(LocalDateTime.now());
 
-        logRepository.save(log);
+        try {
+            logRepository.save(log);
+        } catch (Exception e) {
+            LOGGER.error("Failed to persist email log for {}", to, e);
+        }
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 }
