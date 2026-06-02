@@ -21,11 +21,11 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
-      - key: BREVO_API_KEY
+      - key: SENDGRID_API_KEY
         sync: false
-      - key: BREVO_SENDER_EMAIL
+      - key: SENDGRID_SENDER_EMAIL
         sync: false
-      - key: BREVO_SENDER_NAME
+      - key: SENDGRID_SENDER_NAME
         value: Hotel Management System
       - key: FRONTEND_URL
         sync: false

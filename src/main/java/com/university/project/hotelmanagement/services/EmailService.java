@@ -23,20 +23,20 @@ public class EmailService {
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailService.class);
     private final EmailLogRepository logRepository;
 
-    @Value("${brevo.api-key}")
-    private String brevoApiKey;
+    @Value("${sendgrid.api-key:}")
+    private String sendGridApiKey;
 
-    @Value("${brevo.sender-email}")
+    @Value("${sendgrid.sender-email:}")
     private String senderEmail;
 
-    @Value("${brevo.sender-name:Hotel Management System}")
+    @Value("${sendgrid.sender-name:Hotel Management System}")
     private String senderName;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
     private static final String APP_NAME = "Hotel Management System";
-    private static final String BREVO_SEND_EMAIL_URL = "https://api.brevo.com/v3/smtp/email";
+    private static final String SENDGRID_SEND_EMAIL_URL = "https://api.sendgrid.com/v3/mail/send";
 
 
     public void sendOtpEmail(String toEmail, String userName, String otp) {
@@ -273,11 +273,17 @@ public class EmailService {
     }
 
     private void sendTransactionalEmail(String toEmail, String subject, String htmlContent) {
+        if (sendGridApiKey.isBlank() || senderEmail.isBlank()) {
+            throw new IllegalStateException("SendGrid email configuration is missing");
+        }
+
         Map<String, Object> payload = Map.of(
-                "sender", Map.of("name", senderName, "email", senderEmail),
-                "to", List.of(Map.of("email", toEmail)),
+                "personalizations", List.of(Map.of(
+                        "to", List.of(Map.of("email", toEmail))
+                )),
+                "from", Map.of("name", senderName, "email", senderEmail),
                 "subject", subject,
-                "htmlContent", htmlContent
+                "content", List.of(Map.of("type", "text/html", "value", htmlContent))
         );
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
@@ -288,8 +294,8 @@ public class EmailService {
                 .requestFactory(requestFactory)
                 .build()
                 .post()
-                .uri(BREVO_SEND_EMAIL_URL)
-                .header("api-key", brevoApiKey)
+                .uri(SENDGRID_SEND_EMAIL_URL)
+                .header("Authorization", "Bearer " + sendGridApiKey)
                 .header("accept", "application/json")
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .body(payload)
