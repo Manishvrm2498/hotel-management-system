@@ -5,12 +5,13 @@
 
 ## Render email configuration
 
-The API sends registration and password-reset OTPs through Gmail SMTP. Configure
-these secret environment variables in the Render service before deploying:
+The API sends transactional emails through the Brevo HTTPS API so that it works
+on Render's free plan, which blocks outbound SMTP ports. Configure these
+environment variables in the Render service before deploying:
 
-- `DEV_GMAIL`: the Gmail address used to send emails
-- `DEV_PASSWORD`: a Google App Password for that account, not the normal Google
-  account password
+- `BREVO_API_KEY`: API key created in Brevo under SMTP & API > API Keys
+- `BREVO_SENDER_EMAIL`: sender email address verified in Brevo
+- `BREVO_SENDER_NAME`: optional sender name, defaults to `Hotel Management System`
+- `FRONTEND_URL`: deployed frontend URL, used in email links
 
-The Gmail account must have 2-Step Verification enabled before an App Password
-can be created. After changing either secret, redeploy the Render service.
+After changing these values, redeploy the Render service.

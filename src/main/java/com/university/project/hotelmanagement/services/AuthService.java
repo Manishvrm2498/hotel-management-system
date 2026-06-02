@@ -83,11 +83,12 @@ public class AuthService {
     public String register(RegisterRequest request) {
         String email = request.getEmail().trim().toLowerCase();
 
-        if (userRepository.existsByEmail(email)) {
+        UserEntity user = userRepository.findByEmail(email).orElseGet(UserEntity::new);
+
+        if (user.isEnabled()) {
             throw new DuplicateResourceException("Email already exists");
         }
 
-        UserEntity user = new UserEntity();
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setEmail(email);

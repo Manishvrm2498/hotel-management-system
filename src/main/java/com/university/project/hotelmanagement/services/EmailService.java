@@ -2,34 +2,45 @@ package com.university.project.hotelmanagement.services;
 
 import com.university.project.hotelmanagement.entity.EmailLog;
 import com.university.project.hotelmanagement.repository.EmailLogRepository;
-import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailService.class);
-    private final JavaMailSender mailSender;
     private final EmailLogRepository logRepository;
 
-    @Value("${spring.mail.username}")
-    private String FROM_EMAIL;
-//    private static final String FROM_EMAIL = "no-reply@hotelapp.com";
+    @Value("${brevo.api-key}")
+    private String brevoApiKey;
+
+    @Value("${brevo.sender-email}")
+    private String senderEmail;
+
+    @Value("${brevo.sender-name:Hotel Management System}")
+    private String senderName;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
     private static final String APP_NAME = "Hotel Management System";
+    private static final String BREVO_SEND_EMAIL_URL = "https://api.brevo.com/v3/smtp/email";
 
 
     public void sendOtpEmail(String toEmail, String userName, String otp) {
-        sendOtpWithRetry(toEmail, userName, otp, 3);
+        sendOtpWithRetry(toEmail, userName, otp, 1);
     }
 
     public void sendOtpWithRetry(String toEmail, String userName, String otp, int maxAttempts) {
@@ -39,16 +50,7 @@ public class EmailService {
         for (int i = 1; i <= maxAttempts; i++) {
             try {
 
-                MimeMessage message = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-                helper.setTo(toEmail);
-                helper.setFrom(FROM_EMAIL);
-                helper.setSubject(subject);
-
-                helper.setText(buildRegistrationOtpTemplate(userName, otp), true);
-
-                mailSender.send(message);
+                sendTransactionalEmail(toEmail, subject, buildRegistrationOtpTemplate(userName, otp));
 
                 log(toEmail, subject, "SUCCESS", null);
                 return;
@@ -103,7 +105,7 @@ public class EmailService {
 
 
     public void sendForgotPasswordEmail(String toEmail, String userName, String otp) {
-        sendForgotPasswordWithRetry(toEmail, userName, otp, 3);
+        sendForgotPasswordWithRetry(toEmail, userName, otp, 1);
     }
     public void sendForgotPasswordWithRetry(String toEmail, String userName, String otp, int maxAttempts) {
 
@@ -112,16 +114,7 @@ public class EmailService {
         for (int i = 1; i <= maxAttempts; i++) {
             try {
 
-                MimeMessage message = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-                helper.setTo(toEmail);
-                helper.setFrom(FROM_EMAIL);
-                helper.setSubject(subject);
-
-                helper.setText(buildForgotPasswordTemplate(userName, otp), true);
-
-                mailSender.send(message);
+                sendTransactionalEmail(toEmail, subject, buildForgotPasswordTemplate(userName, otp));
 
                 log(toEmail, subject, "SUCCESS", null);
                 return;
@@ -178,13 +171,6 @@ public class EmailService {
 
         try {
 
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setTo(toEmail);
-            helper.setFrom(FROM_EMAIL);
-            helper.setSubject(subject);
-
             String html =
                     "<div style='font-family: \"Georgia\", serif; background-color: #f0f2f5; padding: 40px 10px;'>" +
                             "<div style='max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e1e4e8;'>" +
@@ -221,9 +207,7 @@ public class EmailService {
                             "</div>" +
                             "</div>" +
                             "</div>";
-            helper.setText(html, true);
-
-            mailSender.send(message);
+            sendTransactionalEmail(toEmail, subject, html);
 
             log(toEmail, subject, "SUCCESS", null);
 
@@ -236,20 +220,11 @@ public class EmailService {
     @Async
     public void sendWelcomeEmail(String toEmail, String userName) {
         String subject = "Welcome to " + APP_NAME + " - Your Luxury Stay Awaits";
-        String exploreUrl = "http://localhost:3000/rooms";
+        String exploreUrl = frontendUrl + "/rooms";
 
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setTo(toEmail);
-            helper.setFrom(FROM_EMAIL);
-            helper.setSubject(subject);
-
             String html = buildWelcomeTemplate(userName, exploreUrl);
-            helper.setText(html, true);
-
-            mailSender.send(message);
+            sendTransactionalEmail(toEmail, subject, html);
             log(toEmail, subject, "SUCCESS", null);
 
         } catch (Exception e) {
@@ -295,6 +270,31 @@ public class EmailService {
 
                 "</div>" +
                 "</div>";
+    }
+
+    private void sendTransactionalEmail(String toEmail, String subject, String htmlContent) {
+        Map<String, Object> payload = Map.of(
+                "sender", Map.of("name", senderName, "email", senderEmail),
+                "to", List.of(Map.of("email", toEmail)),
+                "subject", subject,
+                "htmlContent", htmlContent
+        );
+
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(10));
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
+
+        RestClient.builder()
+                .requestFactory(requestFactory)
+                .build()
+                .post()
+                .uri(BREVO_SEND_EMAIL_URL)
+                .header("api-key", brevoApiKey)
+                .header("accept", "application/json")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .toBodilessEntity();
     }
 
 
