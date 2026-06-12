@@ -958,6 +958,31 @@ textarea:focus {
   color: var(--success);
 }
 
+.otp-copy {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.otp-copy p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.otp-copy strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.otp-hint {
+  padding: 12px 14px;
+  border: 1px solid rgba(239, 199, 111, 0.34);
+  border-radius: var(--radius);
+  background: rgba(239, 199, 111, 0.12);
+  color: #ffe4a3 !important;
+}
+
 .admin-shell {
   min-height: 100vh;
 }
@@ -1115,9 +1140,14 @@ th {
 
 .modal {
   position: relative;
-  width: min(520px, 100%);
+  width: min(580px, 100%);
   padding: 26px;
   border-radius: var(--radius);
+}
+
+.modal > div {
+  display: grid;
+  gap: 16px;
 }
 
 .modal-close {

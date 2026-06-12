@@ -90,7 +90,14 @@ export default function RegisterPage() {
         <Link to="/login">Already have an account?</Link>
       </div>
       <Modal open={Boolean(token)} title="Verify your email" onClose={() => setToken('')}>
-        <p>Enter the OTP sent to {form.email}. If it is not in your Primary inbox, please check your Spam or Junk folder.</p>
+        <div className="otp-copy">
+          <p>
+            Enter the OTP sent to <strong>{form.email}</strong>.
+          </p>
+          <p className="otp-hint">
+            If you do not see the OTP in your Primary inbox, please check your Spam or Junk folder.
+          </p>
+        </div>
         <InputField label="OTP" value={otp} onChange={(event) => setOtp(event.target.value)} />
         <Button onClick={verify} disabled={loading}>{loading ? 'Verifying...' : 'Verify account'}</Button>
       </Modal>
