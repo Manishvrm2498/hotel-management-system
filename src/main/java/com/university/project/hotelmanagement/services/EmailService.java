@@ -10,6 +10,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.LocalDateTime;
 import java.time.Duration;
@@ -60,7 +61,7 @@ public class EmailService {
                 if (i == maxAttempts) {
                     log(toEmail, subject, "FAILED", e.getMessage());
                     LOGGER.error("Failed to send registration OTP email to {}", toEmail, e);
-                    throw new IllegalStateException("Unable to send OTP email. Please try again later.", e);
+                    throw emailDeliveryException("Unable to send OTP email.", e);
                 }
             }
         }
@@ -91,6 +92,9 @@ public class EmailService {
 
                 "<p style='font-size: 14px; color: #666;'>" +
                 "This code is valid for 10 minutes. If you did not sign up for an account, please ignore this email." +
+                "</p>" +
+                "<p style='font-size: 13px; color: #777;'>" +
+                "If you cannot find this OTP in your Primary inbox, please check your Spam or Junk folder." +
                 "</p>" +
                 "</div>" +
 
@@ -124,7 +128,7 @@ public class EmailService {
                 if (i == maxAttempts) {
                     log(toEmail, subject, "FAILED", e.getMessage());
                     LOGGER.error("Failed to send password reset OTP email to {}", toEmail, e);
-                    throw new IllegalStateException("Unable to send password reset email. Please try again later.", e);
+                    throw emailDeliveryException("Unable to send password reset email.", e);
                 }
             }
         }
@@ -155,6 +159,7 @@ public class EmailService {
                 "<p style='color: " + accentColor + "; font-size: 12px; margin-top: 10px; text-transform: uppercase;'>Valid for 10 minutes only</p>" +
                 "</div>" +
 
+                "<p style='font-size: 13px; color: #666;'>If you cannot find this OTP in your Primary inbox, please check your Spam or Junk folder.</p>" +
                 "<p style='font-size: 14px; font-style: italic;'>If you did not make this request, please ignore this email or contact our concierge.</p>" +
                 "</div>" +
 
@@ -326,5 +331,20 @@ public class EmailService {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private IllegalStateException emailDeliveryException(String prefix, Exception exception) {
+        if (exception instanceof IllegalStateException illegalStateException) {
+            return illegalStateException;
+        }
+        if (exception instanceof RestClientResponseException responseException) {
+            return switch (responseException.getStatusCode().value()) {
+                case 400 -> new IllegalStateException(prefix + " Verify the SendGrid sender email.", exception);
+                case 401, 403 -> new IllegalStateException(prefix + " Check the SendGrid API key and Mail Send permission.", exception);
+                case 429 -> new IllegalStateException(prefix + " SendGrid rate limit or quota reached.", exception);
+                default -> new IllegalStateException(prefix + " SendGrid returned an error.", exception);
+            };
+        }
+        return new IllegalStateException(prefix + " Please try again later.", exception);
     }
 }

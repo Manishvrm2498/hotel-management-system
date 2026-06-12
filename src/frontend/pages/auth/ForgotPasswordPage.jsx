@@ -69,6 +69,7 @@ export default function ForgotPasswordPage() {
       )}
       {step === 'otp' && (
         <form className="stack-form" onSubmit={verifyOtp}>
+          <p>If the OTP is not in your Primary inbox, please check your Spam or Junk folder.</p>
           <InputField label="OTP" name="otp" value={form.otp} onChange={update} required />
           <Button disabled={loading}>{loading ? 'Checking...' : 'Verify OTP'}</Button>
         </form>
